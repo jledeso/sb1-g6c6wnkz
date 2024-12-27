@@ -15,7 +15,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Scatter
+  ReferenceLine
 } from 'recharts';
 import { Card } from '../common/Card';
 
@@ -28,6 +28,11 @@ export function EvolucionSaldo({ fechaInicio, fechaFin }: EvolucionSaldoProps) {
   const { movimientos } = useMovimientosStore();
   const { cuentas } = useCuentasStore();
 
+  console.log('Fechas de la gráfica:', {
+    fechaInicio: new Date(fechaInicio),
+    fechaFin: new Date(fechaFin)
+  });
+
   const datosGrafico = React.useMemo(() => {
     // Generar evolución para cada cuenta
     const evolucionPorCuenta: EvolucionCuenta[] = cuentas.map(cuenta => {
@@ -39,12 +44,26 @@ export function EvolucionSaldo({ fechaInicio, fechaFin }: EvolucionSaldoProps) {
       const saldosRealesFiltrados = cuenta.saldosReales
         .filter(sr => {
           const fecha = new Date(sr.fecha);
-          return fecha >= fechaInicio && fecha <= fechaFin;
+          const enRango = fecha >= fechaInicio && fecha <= fechaFin;
+          console.log('Filtrando saldo real:', {
+            fecha,
+            saldo: sr.saldo,
+            fechaInicio,
+            fechaFin,
+            enRango,
+            cuenta: cuenta.nombre
+          });
+          return enRango;
         })
         .map(sr => ({
           fecha: new Date(sr.fecha),
           saldo: sr.saldo
         }));
+
+      console.log('Saldos reales filtrados para cuenta:', {
+        cuenta: cuenta.nombre,
+        saldos: saldosRealesFiltrados
+      });
 
       return {
         cuenta,
@@ -100,26 +119,63 @@ export function EvolucionSaldo({ fechaInicio, fechaFin }: EvolucionSaldoProps) {
                 labelFormatter={(label) => `Fecha: ${label}`}
               />
               <Legend />
-              {cuentas.map((cuenta) => (
-                <React.Fragment key={cuenta.id}>
-                  <Line
-                    type="stepAfter"
-                    dataKey={`saldo_${cuenta.id}`}
-                    name={`${cuenta.nombre} (Calculado)`}
-                    stroke={`#${Math.floor(Math.random()*16777215).toString(16)}`}
-                    dot={false}
-                    activeDot={{ r: 5 }}
-                    connectNulls
-                  />
-                  <Scatter
-                    dataKey={`saldoReal_${cuenta.id}`}
-                    name={`${cuenta.nombre} (Real)`}
-                    fill="#FF0000"
-                    shape="star"
-                    legendType="star"
-                  />
-                </React.Fragment>
-              ))}
+              {cuentas.map((cuenta) => {
+                // Color para la línea de movimientos calculados
+                const colorMovimientos = `#${Math.floor(Math.random()*16777215).toString(16)}`;
+                // Color para la línea de saldos reales (usando un tono más oscuro)
+                const colorSaldosReales = `#FF0000`;
+
+                return (
+                  <React.Fragment key={cuenta.id}>
+                    {/* Línea de movimientos calculados */}
+                    <Line
+                      type="stepAfter"
+                      dataKey={`saldo_${cuenta.id}`}
+                      name={`${cuenta.nombre} (Calculado)`}
+                      stroke={colorMovimientos}
+                      dot={false}
+                      activeDot={{ r: 5 }}
+                      connectNulls
+                    />
+                    {/* Línea de saldos reales */}
+                    <Line
+                      type="stepAfter"
+                      dataKey={`saldoReal_${cuenta.id}`}
+                      name={`${cuenta.nombre} (Real)`}
+                      stroke={colorSaldosReales}
+                      strokeWidth={2}
+                      dot={(props: any) => {
+                        const esSaldoRealIntroducido = props.payload[`esSaldoRealIntroducido_${cuenta.id}`];
+                        if (!esSaldoRealIntroducido) return null;
+                        
+                        return (
+                          <circle
+                            key={`dot-${cuenta.id}-${props.payload.fecha}`}
+                            cx={props.cx}
+                            cy={props.cy}
+                            r={6}
+                            fill={colorSaldosReales}
+                            stroke="#fff"
+                            strokeWidth={2}
+                          />
+                        );
+                      }}
+                      activeDot={(props: any) => (
+                        <circle
+                          key={`activeDot-${cuenta.id}-${props.payload.fecha}`}
+                          cx={props.cx}
+                          cy={props.cy}
+                          r={8}
+                          fill={colorSaldosReales}
+                          stroke="#fff"
+                          strokeWidth={2}
+                        />
+                      )}
+                      connectNulls={true}
+                    />
+                  </React.Fragment>
+                );
+              })}
             </LineChart>
           </ResponsiveContainer>
         </div>

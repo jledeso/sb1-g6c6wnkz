@@ -45,7 +45,29 @@ function exportarSeccionCuentas(cuentas: Cuenta[]): string {
     ].join(',');
   });
 
-  return [header, headers, ...rows].join('\n');
+  // Añadir sección de saldos reales
+  const saldosRealesHeader = '[SALDOS_REALES]';
+  const saldosRealesHeaders = ['cuentaId', 'fecha', 'saldo', 'notas', 'id'].join(',');
+  
+  const saldosRealesRows = cuentas.flatMap(cuenta => 
+    cuenta.saldosReales.map(saldoReal => [
+      cuenta.id,
+      formatearFechaCorta(saldoReal.fecha),
+      saldoReal.saldo,
+      `"${saldoReal.notas || ''}"`,
+      saldoReal.id
+    ].join(','))
+  );
+
+  return [
+    header, 
+    headers, 
+    ...rows, 
+    '', // Línea en blanco para separar secciones
+    saldosRealesHeader,
+    saldosRealesHeaders,
+    ...saldosRealesRows
+  ].join('\n');
 }
 
 function exportarSeccionCategorias(categorias: Categoria[]): string {
